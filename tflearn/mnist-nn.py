@@ -5,14 +5,7 @@
 import tensorflow as tf
 import logging
 import sys
-
-
-def init_logging():
-    logging.basicConfig(
-        stream=sys.stdout,
-        format='%(asctime)s %(message)s',
-        level=logging.INFO,
-    )
+from tflearn import utils
 
 def mnist():
     mnist = tf.keras.datasets.mnist
@@ -38,5 +31,5 @@ def mnist():
 
 
 if __name__ == "__main__":
-    init_logging()
+    utils.init_logging()
     mnist()
