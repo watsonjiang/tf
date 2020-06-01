@@ -58,23 +58,36 @@ def build_model():
     model = keras.Sequential([
         feature_layer,
         keras.layers.Dense(128, activation='relu'),
-        keras.layers.Dense(128, activation='relu'),
         keras.layers.Dense(1)
     ])
-    
     model.compile(optimizer='adam',
               loss=keras.losses.BinaryCrossentropy(from_logits=True),
               metrics=['accuracy'])
     
+    print(model.summary())
+    return model
+
+def build_model_v2():
+    '''functional api
+    '''
+    w, d = build_feature_columns()
+    feature_layer = keras.layers.DenseFeatures(w)
+    hidden = keras.layers.Dense(128, activation="relu")(feature_layer)
+    output = keras.layers.Dense(1)(hidden)
+    model = keras.models.Model(inputs=feature_layer, output=output)
+    print(model.summary())
+    model.compile(optimizer='adam',
+              loss=keras.losses.BinaryCrossentropy(from_logits=True),
+              metrics=['accuracy'])
+
     return model
 
 if __name__ == '__main__':
     utils.init_logging()
-    model = build_model()
-    train_ds, test_ds = load_data()
-    model.fit(train_ds,
-          #validation_data=val_ds,
-          epochs=5)
+    model = build_model_v2()
+    #train_ds, test_ds = load_data()
+    #model.fit(train_ds,
+    #      epochs=10)
 
-    loss, accuracy = model.evaluate(test_ds)
-    print("Accuracy", accuracy, "error", 1-accuracy)
+    #loss, accuracy = model.evaluate(test_ds)
+    #print("Accuracy", accuracy, "error", 1-accuracy)
