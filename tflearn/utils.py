@@ -45,10 +45,10 @@ def _df_to_dataset(dataframe, label_column='label', shuffle=True, batch_size=32)
     return ds
 
 def _do_load_adult_data(url):
-    cache_file_path = './'+os.path.basename(urllib.parse.urlparse(url).path) 
-    logging.info('cache_file_path %s', cache_file_path)
+    cache_file_path = './data'+os.path.basename(urllib.parse.urlparse(url).path) 
 
     if not os.path.exists(cache_file_path):
+        logging.info("downloading %s", cache_file_path)
         _download_and_clean_file(cache_file_path, url)
  
     COLUMN_NAMES = ['age', 'workclass', 'fnlwgt', 'education', 'education_num',
