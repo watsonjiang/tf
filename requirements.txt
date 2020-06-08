@@ -82,7 +82,6 @@ tensorflow-estimator==2.2.0
 termcolor==1.1.0
 terminado==0.8.3
 testpath==0.4.4
-tflearn @ file:///home/watson/workspace/tf/dist/tflearn-1.0.0-py3-none-any.whl
 threadpoolctl==2.0.0
 toml==0.10.1
 tornado==6.0.4
