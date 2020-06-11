@@ -5,12 +5,37 @@
 import os
 import urllib.request
 from tflearn import utils
+import tensorflow as tf
 from tensorflow import feature_column
 from tensorflow import keras
 
+COLUMNS = [('age', tf.int32), 
+           ('workclass', tf.string), 
+           ('fnlwgt', tf.int32), 
+           ('education', tf.string),
+           ('education_num', tf.int32),
+           ('marital_status', tf.string),
+           ('occupation', tf.string),
+           ('relationship', tf.string),
+           ('race', tf.string), 
+           ('gender', tf.string),
+           ('capital_gain', tf.int32),
+           ('capital_loss', tf.int32),
+           ('hours_per_week', tf.int32),
+           ('native_country', tf.string)
+           ]
+ 
 
 def load_data():
     return utils.load_adult_data()
+
+def build_input_layer():
+    '''输入层
+    '''
+    schema = {}
+    for name, t in COLUMNS:
+        schema[name] = keras.Input(shape=(1,), name=name, dtype=t)
+    return schema
 
 def build_feature_columns():
     age = feature_column.numeric_column('age')
@@ -54,7 +79,7 @@ def build_feature_columns():
 
 def build_model():
     w, d = build_feature_columns()
-    feature_layer = keras.layers.DenseFeatures(w) 
+    feature_layer = keras.layers.DenseFeatures(w)
     model = keras.Sequential([
         feature_layer,
         keras.layers.Dense(128, activation='relu'),
@@ -71,10 +96,11 @@ def build_model_v2():
     '''functional api
     '''
     w, d = build_feature_columns()
-    feature_layer = keras.layers.DenseFeatures(w)
-    hidden = keras.layers.Dense(128, activation="relu")(feature_layer)
-    output = keras.layers.Dense(1)(hidden)
-    model = keras.models.Model(inputs=feature_layer, output=output)
+    input_layer = build_input_layer()
+    feature_layer = keras.layers.DenseFeatures(w)(input_layer)
+    hidden_layer = keras.layers.Dense(128, activation="relu")(feature_layer)
+    output_layer = keras.layers.Dense(1)(hidden_layer)
+    model = keras.Model(inputs=[v for v in input_layer.values()], outputs=output_layer)
     print(model.summary())
     model.compile(optimizer='adam',
               loss=keras.losses.BinaryCrossentropy(from_logits=True),
@@ -85,9 +111,8 @@ def build_model_v2():
 if __name__ == '__main__':
     utils.init_logging()
     model = build_model_v2()
-    #train_ds, test_ds = load_data()
-    #model.fit(train_ds,
-    #      epochs=10)
+    train_ds, test_ds = load_data()
+    model.fit(train_ds, epochs=10)
 
-    #loss, accuracy = model.evaluate(test_ds)
-    #print("Accuracy", accuracy, "error", 1-accuracy)
+    loss, accuracy = model.evaluate(test_ds)
+    print("Accuracy", accuracy, "error", 1-accuracy)
