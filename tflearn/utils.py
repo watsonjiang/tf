@@ -2,6 +2,7 @@
 # 工具模块
 #
 import os
+import os.path
 import sys
 import urllib.request
 import urllib.parse
@@ -45,7 +46,7 @@ def _df_to_dataset(dataframe, label_column='label', shuffle=True, batch_size=32)
     return ds
 
 def _do_load_adult_data(url):
-    cache_file_path = './data'+os.path.basename(urllib.parse.urlparse(url).path) 
+    cache_file_path = os.path.join('./data', os.path.basename(urllib.parse.urlparse(url).path))
 
     if not os.path.exists(cache_file_path):
         logging.info("downloading %s", cache_file_path)

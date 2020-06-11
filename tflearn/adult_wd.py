@@ -74,25 +74,39 @@ def build_feature_columns():
                  'Thailand', 'Yugoslavia', 'El-Salvador', 'Trinadad&Tobago', 'Peru', 'Hong', 
                  'Holand-Netherlands']))
     wide = [age, workclass, race, gender, capital_gain, capital_loss, hours_per_week, native_country]    
-    deep = []
+    deep = [age, workclass, race, gender, capital_gain, capital_loss, hours_per_week, native_country]
     return (wide, deep)
 
-def build_model():
+def build_model_wide():
     w, d = build_feature_columns()
     feature_layer = keras.layers.DenseFeatures(w)
+    model = keras.Sequential([
+        feature_layer,
+        keras.layers.Dense(1)
+    ])
+
+    model.compile(optimizer='adam',
+              loss=keras.losses.BinaryCrossentropy(from_logits=True),
+              metrics=['accuracy'])
+    
+    return model
+
+def build_model_deep():
+    w, d = build_feature_columns()
+    feature_layer = keras.layers.DenseFeatures(d)
     model = keras.Sequential([
         feature_layer,
         keras.layers.Dense(128, activation='relu'),
         keras.layers.Dense(1)
     ])
+
     model.compile(optimizer='adam',
               loss=keras.losses.BinaryCrossentropy(from_logits=True),
               metrics=['accuracy'])
-    
-    print(model.summary())
     return model
 
-def build_model_v2():
+
+def build_model_wide_deep():
     '''functional api
     '''
     w, d = build_feature_columns()
@@ -100,8 +114,7 @@ def build_model_v2():
     feature_layer = keras.layers.DenseFeatures(w)(input_layer)
     hidden_layer = keras.layers.Dense(128, activation="relu")(feature_layer)
     output_layer = keras.layers.Dense(1)(hidden_layer)
-    model = keras.Model(inputs=[v for v in input_layer.values()], outputs=output_layer)
-    print(model.summary())
+    model = keras.Model(inputs=input_layer, outputs=output_layer)
     model.compile(optimizer='adam',
               loss=keras.losses.BinaryCrossentropy(from_logits=True),
               metrics=['accuracy'])
@@ -110,9 +123,10 @@ def build_model_v2():
 
 if __name__ == '__main__':
     utils.init_logging()
-    model = build_model_v2()
+    model = build_model_wide()
+    #model = build_model_deep()
+    #model = build_model_wide_deep()
     train_ds, test_ds = load_data()
     model.fit(train_ds, epochs=10)
-
     loss, accuracy = model.evaluate(test_ds)
     print("Accuracy", accuracy, "error", 1-accuracy)
