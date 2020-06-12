@@ -74,7 +74,7 @@ def build_feature_columns():
                  'Thailand', 'Yugoslavia', 'El-Salvador', 'Trinadad&Tobago', 'Peru', 'Hong', 
                  'Holand-Netherlands']))
     wide = [age, workclass, race, gender, capital_gain, capital_loss, hours_per_week, native_country]    
-    deep = [age, workclass, race, gender, capital_gain, capital_loss, hours_per_week, native_country]
+    deep = [age, workclass, fnlwgt, education, education_num, occupation, relationship, race, gender, capital_gain, capital_loss, hours_per_week, native_country]
     return (wide, deep)
 
 def build_model_wide():
@@ -82,12 +82,12 @@ def build_model_wide():
     feature_layer = keras.layers.DenseFeatures(w)
     model = keras.Sequential([
         feature_layer,
-        keras.layers.Dense(1)
+        keras.layers.Dense(1, activation='sigmoid')
     ])
 
     model.compile(optimizer='adam',
               loss=keras.losses.BinaryCrossentropy(from_logits=True),
-              metrics=['accuracy'])
+              metrics=['accuracy', tf.keras.metrics.AUC()])
     
     return model
 
@@ -97,12 +97,15 @@ def build_model_deep():
     model = keras.Sequential([
         feature_layer,
         keras.layers.Dense(128, activation='relu'),
-        keras.layers.Dense(1)
+        keras.layers.Dense(64, activation='relu'),
+        keras.layers.Dense(32, activation='relu'),
+        keras.layers.Dense(16, activation='relu'),
+        keras.layers.Dense(1, activation='sigmoid')
     ])
 
     model.compile(optimizer='adam',
               loss=keras.losses.BinaryCrossentropy(from_logits=True),
-              metrics=['accuracy'])
+              metrics=['accuracy', tf.keras.metrics.AUC()])
     return model
 
 
@@ -117,16 +120,20 @@ def build_model_wide_deep():
     model = keras.Model(inputs=input_layer, outputs=output_layer)
     model.compile(optimizer='adam',
               loss=keras.losses.BinaryCrossentropy(from_logits=True),
-              metrics=['accuracy'])
+              metrics=['accuracy', tf.keras.metrics.AUC()])
 
     return model
 
 if __name__ == '__main__':
     utils.init_logging()
-    model = build_model_wide()
-    #model = build_model_deep()
+    #model = build_model_wide()
+    model = build_model_deep()
     #model = build_model_wide_deep()
     train_ds, test_ds = load_data()
     model.fit(train_ds, epochs=10)
-    loss, accuracy = model.evaluate(test_ds)
-    print("Accuracy", accuracy, "error", 1-accuracy)
+    loss, accuracy, auc = model.evaluate(test_ds)
+    print("Accuracy", accuracy, "auc", auc)
+    #for x, y in test_ds: 
+    #    y_pred = model.predict(x)
+    #    for v, v1 in zip(y, y_pred):
+    #        print(v.as_numpy(), v1)
