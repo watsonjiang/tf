@@ -36,7 +36,7 @@ def _download_and_clean_file(filename, url):
     os.remove(temp_file)
 
 # A utility method to create a tf.data dataset from a Pandas Dataframe
-def _df_to_dataset(dataframe, label_column='label', shuffle=True, batch_size=32):
+def df_to_dataset(dataframe, label_column='label', shuffle=True, batch_size=32):
     dataframe = dataframe.copy()
     label = dataframe.pop(label_column)
     ds = tf.data.Dataset.from_tensor_slices((dict(dataframe), label))
@@ -58,9 +58,7 @@ def _do_load_adult_data(url):
     'income_bracket']
     
     df = pd.read_csv(cache_file_path, names=COLUMN_NAMES) 
-    df['label'] = df.pop('income_bracket').transform(lambda x: 1 if x == '>50K' else 0)
-    ds = _df_to_dataset(df)
-    return ds
+    return df
 
 def load_adult_data():
     '''美国统计局人口调查数据，用于预测收入。

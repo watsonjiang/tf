@@ -8,6 +8,10 @@ from tflearn import utils
 import tensorflow as tf
 from tensorflow import feature_column
 from tensorflow import keras
+from sklearn.preprocessing import StandardScaler
+import pandas as pd
+from functools import partial
+from sklearn.metrics import roc_auc_score
 
 COLUMNS = [('age', tf.int32), 
            ('workclass', tf.string), 
@@ -28,6 +32,21 @@ COLUMNS = [('age', tf.int32),
 
 def load_data():
     return utils.load_adult_data()
+
+def preprocess_input(train_df, test_df):
+    '''预处理输入数据
+    '''
+    #归一化
+    TARGET_COLUMNS = ['age', 'fnlwgt', 'education_num', 'capital_gain', 'capital_loss', 'hours_per_week']
+    scaler = StandardScaler()
+    normalized_train_df = pd.DataFrame(scaler.fit_transform(train_df[TARGET_COLUMNS]), columns=TARGET_COLUMNS)
+    normalized_test_df = pd.DataFrame(scaler.transform(test_df[TARGET_COLUMNS]), columns=TARGET_COLUMNS)
+    train_df[TARGET_COLUMNS] = normalized_train_df[TARGET_COLUMNS]
+    test_df[TARGET_COLUMNS] = normalized_test_df[TARGET_COLUMNS]
+    train_df['label'] = train_df.pop('income_bracket').transform(lambda x: 1 if x == '>50K' else 0)
+    test_df['label'] = test_df.pop('income_bracket').transform(lambda x: 1 if x == '>50K' else 0)
+    return map(partial(utils.df_to_dataset, batch_size=512), [train_df, test_df]) 
+
 
 def build_input_layer():
     '''输入层
@@ -78,7 +97,7 @@ def build_feature_columns():
     return (wide, deep)
 
 def build_model_wide():
-    w, d = build_feature_columns()
+    w, _ = build_feature_columns()
     feature_layer = keras.layers.DenseFeatures(w)
     model = keras.Sequential([
         feature_layer,
@@ -126,14 +145,21 @@ def build_model_wide_deep():
 
 if __name__ == '__main__':
     utils.init_logging()
-    #model = build_model_wide()
-    model = build_model_deep()
+    train_df, test_df = load_data()
+    train_ds, test_ds = preprocess_input(train_df, test_df)
+    model = build_model_wide()
+    #model = build_model_deep()
     #model = build_model_wide_deep()
-    train_ds, test_ds = load_data()
     model.fit(train_ds, epochs=10)
     loss, accuracy, auc = model.evaluate(test_ds)
     print("Accuracy", accuracy, "auc", auc)
-    #for x, y in test_ds: 
-    #    y_pred = model.predict(x)
-    #    for v, v1 in zip(y, y_pred):
-    #        print(v.as_numpy(), v1)
+    y_all = []
+    y_pred_all = [] 
+    for x, y in test_ds: 
+        y_pred = model.predict(x)
+        y_all.extend(y.numpy()) 
+        y_pred_all.extend(y_pred.flatten())
+    
+    print("roc_auc_score", roc_auc_score(y_all, y_pred_all))
+    for y1, y2 in zip(y_all[:10], y_pred_all[:10]):
+        print(y1, y2)
