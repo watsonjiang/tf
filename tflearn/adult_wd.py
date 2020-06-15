@@ -39,13 +39,11 @@ def preprocess_input(train_df, test_df):
     #归一化
     TARGET_COLUMNS = ['age', 'fnlwgt', 'education_num', 'capital_gain', 'capital_loss', 'hours_per_week']
     scaler = StandardScaler()
-    normalized_train_df = pd.DataFrame(scaler.fit_transform(train_df[TARGET_COLUMNS]), columns=TARGET_COLUMNS)
-    normalized_test_df = pd.DataFrame(scaler.transform(test_df[TARGET_COLUMNS]), columns=TARGET_COLUMNS)
-    train_df[TARGET_COLUMNS] = normalized_train_df[TARGET_COLUMNS]
-    test_df[TARGET_COLUMNS] = normalized_test_df[TARGET_COLUMNS]
+    train_df[TARGET_COLUMNS] = pd.DataFrame(scaler.fit_transform(train_df[TARGET_COLUMNS]), columns=TARGET_COLUMNS)
+    test_df[TARGET_COLUMNS] = pd.DataFrame(scaler.transform(test_df[TARGET_COLUMNS]), columns=TARGET_COLUMNS)
     train_df['label'] = train_df.pop('income_bracket').transform(lambda x: 1 if x == '>50K' else 0)
     test_df['label'] = test_df.pop('income_bracket').transform(lambda x: 1 if x == '>50K' else 0)
-    return map(partial(utils.df_to_dataset, batch_size=512), [train_df, test_df]) 
+    return map(partial(utils.df_to_dataset, batch_size=1024), [train_df, test_df]) 
 
 
 def build_input_layer():
@@ -58,6 +56,7 @@ def build_input_layer():
 
 def build_feature_columns():
     age = feature_column.numeric_column('age')
+    age_bucket = feature_column.bucketized_column(age, boundaries=[18, 25, 30, 35, 40, 45, 50, 55, 60, 65])
     workclass = feature_column.indicator_column(feature_column.categorical_column_with_vocabulary_list('workclass',
                 ['Private', 'Self-emp-not-inc', 'Self-emp-inc', 'Federal-gov', 
                 'Local-gov', 'State-gov', 'Without-pay', 'Never-worked']))
@@ -92,7 +91,11 @@ def build_feature_columns():
                  'Taiwan', 'Haiti', 'Columbia', 'Hungary', 'Guatemala', 'Nicaragua', 'Scotland',
                  'Thailand', 'Yugoslavia', 'El-Salvador', 'Trinadad&Tobago', 'Peru', 'Hong', 
                  'Holand-Netherlands']))
-    wide = [age, workclass, race, gender, capital_gain, capital_loss, hours_per_week, native_country]    
+    race_gender = feature_column.indicator_column(feature_column.crossed_column([
+        feature_column.categorical_column_with_vocabulary_list('race', ['White', 'Asian-Pac-Islander', 'Amer-Indian-Eskimo', 'Other', 'Black']),
+        feature_column.categorical_column_with_vocabulary_list('gender', ['Female', 'Male']) ], hash_bucket_size=10))
+
+    wide = [age_bucket, workclass, fnlwgt, education, education_num, occupation, relationship, race, gender, capital_gain, capital_loss, hours_per_week, native_country, race_gender]    
     deep = [age, workclass, fnlwgt, education, education_num, occupation, relationship, race, gender, capital_gain, capital_loss, hours_per_week, native_country]
     return (wide, deep)
 
@@ -111,11 +114,10 @@ def build_model_wide():
     return model
 
 def build_model_deep():
-    w, d = build_feature_columns()
+    _, d = build_feature_columns()
     feature_layer = keras.layers.DenseFeatures(d)
     model = keras.Sequential([
         feature_layer,
-        keras.layers.Dense(128, activation='relu'),
         keras.layers.Dense(64, activation='relu'),
         keras.layers.Dense(32, activation='relu'),
         keras.layers.Dense(16, activation='relu'),
@@ -133,24 +135,34 @@ def build_model_wide_deep():
     '''
     w, d = build_feature_columns()
     input_layer = build_input_layer()
-    feature_layer = keras.layers.DenseFeatures(w)(input_layer)
-    hidden_layer = keras.layers.Dense(128, activation="relu")(feature_layer)
-    output_layer = keras.layers.Dense(1)(hidden_layer)
+    wide_feature_layer = keras.layers.DenseFeatures(w)(input_layer)
+    deep_feature_layer = keras.layers.DenseFeatures(d)(input_layer)
+    hidden_layer = keras.layers.Dense(32, activation="relu")(deep_feature_layer)
+    hidden_layer = keras.layers.Dense(16, activation="relu")(hidden_layer)
+    output_layer = keras.layers.Dense(1, activation="sigmoid")(keras.layers.concatenate([wide_feature_layer, hidden_layer]))
     model = keras.Model(inputs=input_layer, outputs=output_layer)
     model.compile(optimizer='adam',
               loss=keras.losses.BinaryCrossentropy(from_logits=True),
               metrics=['accuracy', tf.keras.metrics.AUC()])
-
+    tf.keras.utils.plot_model(
+        model,
+        to_file="model.png",
+        show_shapes=False,
+        show_layer_names=True,
+        rankdir="TB",
+        expand_nested=False,
+        dpi=96,
+    )
     return model
 
 if __name__ == '__main__':
     utils.init_logging()
     train_df, test_df = load_data()
     train_ds, test_ds = preprocess_input(train_df, test_df)
-    model = build_model_wide()
+    #model = build_model_wide()
     #model = build_model_deep()
-    #model = build_model_wide_deep()
-    model.fit(train_ds, epochs=10)
+    model = build_model_wide_deep()
+    model.fit(train_ds, epochs=50)
     loss, accuracy, auc = model.evaluate(test_ds)
     print("Accuracy", accuracy, "auc", auc)
     y_all = []

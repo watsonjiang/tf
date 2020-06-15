@@ -13,7 +13,10 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/watson.jiang/tf",
     packages=setuptools.find_packages(),
-    install_requires=['pandas>=1.0.3', 'tensorflow-gpu>=2.2.0'],
+    install_requires=[
+                     'pandas>=1.0.3',
+                     'tensorflow-gpu>=2.2.0',
+                     'scikit-learn>=0.23.1'],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
